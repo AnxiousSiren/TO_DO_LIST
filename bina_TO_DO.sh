@@ -8,7 +8,7 @@
 ###########################################################
 ######################## SOURCE ###########################
 
-# BARVIČKY
+# BARVIČKY - předpřipraveno pro nástavbu
 	source "./graphics/colors.sh"
 
 # PROMĚNNÉ	
@@ -38,35 +38,63 @@
 
 ### ZOBRAZIT SEZNAM ÚKOLŮ ###
 
-	 cat_tasks() {
-	 cat 
+	cat_tasks() {	
+#	 echo "SEZNAM ÚKOLŮ!"
+#	 ls -la $PELECH | awk '{print $9}'  | grep ".conf" > $LIST_MIAW
 
+ 	 # kontrola, jestli je ve složce s configy vůbec nějaký config
+#	  if [ ! -s "$LIST_MIAW" ]; then    
+#   	 	 echo "Nemáš zadané žádné úkoly."
+#   	 	 read -r -p "Pokračuj stiskem Enter..." _ 
+#		 clear; continue
+# 	  fi
+	  echo "SEZNAM ÚKOLŮ!"
+	  local dir="${PELECH%/}"
 
+ 	 # jsou tam nějaké .conf?
+ 	  set -- "$dir"/*.conf
+ 	  if [ ! -e "$1" ]; then
+   		 echo "Nemáš zadané žádné úkoly."
+   		 read -r -p "Pokračuj stiskem Enter..." _ < /dev/tty
+   		 clear; cat_menu; return
+ 	 fi
+
+	 # vypsání seznamu úkolů
+#	  for TASK_MEOW in $(cat $LIST_MIAW); do 
+	  local i=0
+	  local TASK_MEOW NAME STATUS
+	  for TASK_MEOW in "$@"; do
+	  	i=$((i+1)) 
+	        unset NAME STATUS	
+	 # přeskoč neexistující nebo prázdné řádky
+# 	 	 [[ -f "$TASK_MEOW" ]] || continue
+		source "$TASK_MEOW" 2>/dev/null || continue
+
+	# defaultní hodnota pro proměnnou STATUS (v configu jednotlivých tasků)
+ 		 : "${STATUS:=N}"
+
+ 		 if [[ "${STATUS^^}" == "N" ]]; then
+   	 # nedokončené úkoly: tyrkysově
+   			 printf "${TEAL2}" "$NAME" "${BB}"
+		 else
+   	 # dokončené úkoly: fialově + kočička
+   			 printf "${PURP2}" "≽^•⩊•^≼" "$NAME" "${BB}"
+ 		 fi
+ 	  done 
+	 read -r -p "Pokračuj stiskem Enter..." _
+         clear
          cat_menu
  }
 
 
 
-
-### VYPSAT POZNÁMKY K ÚKOLU ###
-
-         el_gato_task() {
-
-
-
-	cat_tasks	 
-}
-
-
-
-
 ### OZNAČIT ÚKOL JAKO SPLNĚNÝ ###
 
-         cat_ate_it() {
+#         cat_ate_it() {
 
 
-	 cat_tasks
-}
+#	 cat_tasks
+#}
 
 
 
@@ -81,23 +109,16 @@
 
 	# uživatel zadá systémový název	 
 	 while :; do
-	 read -r -p "Zadejte systémový název:" SYSCAT
+	 read -r -p "Zadejte systémový název:" SYSCAT < /dev/tty
 	 SYSCAT="${SYSCAT//[!a-z0-9._-]/_}"
 	 	if [[ ! "$SYSCAT" =~ ^[a-z0-9._-]+$ ]]; then
     	 		echo "Neplatný název. Povolené znaky: a-z 0-9 . _ -"
-    			return 1
+    			continue
 	 	fi
 	# systémový název nemůže být prázdný
 		if [[ -z "$SYSCAT" ]]; then
     			echo "Název nesmí být prázdný."; continue
   		fi
-
-	# povolené znaky: a-z 0-9 . _ -
-  		if [[ ! "$SYSCAT" =~ ^[a-z0-9._-]+$ ]]; then
-    			echo "Systémový název obsahuje nepovolené znaky."
-    			continue
- 		fi
-
         # Zkontroluje, jestli už neexistuje úkol se stejným systémovým názvem
          echo "Kontrola duplicity:" 	
         # výsledný config nově založeného úkolu
@@ -106,45 +127,28 @@
     		echo "Úkol s tímto systémovým názvem už existuje."; continue
  		 fi
 	# všechno proběhlo v pořádku
+	 echo "Je to OK! Neexistuje úkol se stejným systémovým názvem."
 	 break 
 
-	done
+	 done
 
 
 	# název tasku s diakritikou - bude se zobrazovat v seznamu úkolů
-	 read -r -p "Zadejte název úkolu s diakritikou: " CATNAME
+	 read -r -p "Zadejte název úkolu s diakritikou: " CATNAME < /dev/tty
 	# escapování / zbavení se speciálních znaků
 	 CATNAME_E=${CATNAME//\\/\\\\}
 	 CATNAME_E=${CATNAME_E//\"/\\\"}
 	 CATNAME_E=${CATNAME_E//\$/\\$}
-	# založí soubor s vyplněným názvem a přidá hodnotu pro status úkolu
+	# založí soubor s vyplněným názvem a přidá hodnotu pro status úkolu + zahlásí error při chybě vytváření úkolu
 	 {
   	 printf 'NAME="%s"\n' "$CATNAME_E"
  	 printf 'STATUS=N\n'
-	 } > "$CATNIP"
+	 } > "$CATNIP" || { echo "Zápis selhal: $CATNIP"; return 1; }
 
-	# přidání detailů k úkolu
-	 echo "DETAILS: piš text (více řádků). Ukonči řádkem: END"
-	 CATNOTES=""
-	 while IFS= read -r line; do
-		  [[ $line == END ]] && break
-		  CATNOTES+="$line"$'\n'
-	  done
-	 
-        # další odpreparování spešl znaků  
-         NOTES_E=${NOTES//\\/\\\\}
-	 NOTES_E=${DETAILS_E//\"/\\\"}
-	 NOTES_E=${DETAILS_E//\$/\\$}
-	 
-	# zapíše výstup do configu úkolu
-	 printf 'DETAILS="%s"\n' "$DETAILS_E" >> "$CATNIP"
-	
-	 
-	 clear
-	
 	# echo o zakončení vytváření nového úkolu
 	 echo "Úkol založený: $CATNAME_E"
-
+	 read -r -p "Pokračuj stiskem Enter..." _
+	 clear
 	# posunutí zpět na list tasků
 	 cat_tasks 
 }
@@ -163,9 +167,11 @@
 
 ### VYPNOUT TASKMASTER ###
 
-#         so_long_kitty() {
-
-#}
+         so_long_kitty() {
+          sleep 0.2
+	  clear
+ 	  exit 0
+}
 
 
 
@@ -179,11 +185,10 @@
         echo
         case $WHISKERS in
                 1) cat_tasks ;;
-                2) el_gato_task ;;
-                3) cat_ate_it ;;
-                4) atarashii_neko_task ;;
-                5) buried_in_sand ;;
-                6) so_long_kitty
+                2) cat_ate_it ;;
+                3) atarashii_neko_task ;;
+                4) buried_in__sand ;;
+                5) so_long_kitty
         esac
 
 }
@@ -214,8 +219,6 @@
 	bigus_catus_animatus
 	sleep 2
 	echo "############################## TADÁÁÁÁÁÁÁÁÁ! ################################"
-	echo
-	echo
 	sleep 2 
 
 # smyčka z menu k taskům a zpět
