@@ -1,0 +1,6 @@
+BIGUS_CATUS_ANIM="$SCRIPT_DIR/graphics/bigus_catus/bigus_catus_listus.list"
+BIG_CATWALK="$SCRIPT_DIR/graphics/bigus_catus/"
+BINA_NADPIS="$SCRIPT_DIR/graphics/ascii_nadpis.txt"
+MENU_MIAW="$SCRIPT_DIR/graphics/ascii_menu.txt"
+LIST_MIAW="$SCRIPT_DIR/temp/ascii_list.temp"
+PELECH="$SCRIPT_DIR/config/"
