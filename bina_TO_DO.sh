@@ -273,7 +273,7 @@
                 1) cat_tasks ;;
                 2) cat_ate_it ;;
                 3) atarashii_neko_task ;;
-                4) buried_in__sand ;;
+                4) buried_in_sand ;;
                 5) so_long_kitty
         esac
 
