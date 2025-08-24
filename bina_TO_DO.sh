@@ -28,7 +28,7 @@
 	do
 		clear
                 cat $BIG_CATWALK$i
-                sleep 0.3
+                sleep 0.2
         done
 
 }
@@ -39,62 +39,91 @@
 ### ZOBRAZIT SEZNAM ÚKOLŮ ###
 
 	cat_tasks() {	
-#	 echo "SEZNAM ÚKOLŮ!"
-#	 ls -la $PELECH | awk '{print $9}'  | grep ".conf" > $LIST_MIAW
+	 echo "ᓚᘏᗢ -- SEZNAM ÚKOLŮ -- ᗢᘏᓗ "
 
- 	 # kontrola, jestli je ve složce s configy vůbec nějaký config
-#	  if [ ! -s "$LIST_MIAW" ]; then    
-#   	 	 echo "Nemáš zadané žádné úkoly."
-#   	 	 read -r -p "Pokračuj stiskem Enter..." _ 
-#		 clear; continue
-# 	  fi
-	  echo "SEZNAM ÚKOLŮ!"
-	  local dir="${PELECH%/}"
+	 had_any=false
+	 for LIST_TASKU in "$PELECH"/*.conf; do
+   	 [ -e "$LIST_TASKU" ] || break
+   	 had_any=true
 
- 	 # jsou tam nějaké .conf?
- 	  set -- "$dir"/*.conf
- 	  if [ ! -e "$1" ]; then
+	 name=$(grep -m1 '^NAME=' "$LIST_TASKU"   | sed -E 's/^NAME="?([^"]*)"?/\1/')
+   	 status=$(grep -m1 '^STATUS=' "$LIST_TASKU" | sed -E 's/^STATUS="?([^"]*)"?/\1/')
+
+   	 # fallbacky, kdyby klíč chyběl
+   	 : "${name:=<bez NAME>}"
+   	 : "${status:=N}"
+
+	 # porovnání case-insensitive
+  	  if [[ "${status^^}" == "Y" ]]; then
+      		mark='[X]'
+   	  else
+      		mark='[ ]'
+   	  fi
+	 	printf "%s %s\n" "$mark" "$name"
+	  done
+
+	  if ! $had_any; then
    		 echo "Nemáš zadané žádné úkoly."
-   		 read -r -p "Pokračuj stiskem Enter..." _ < /dev/tty
-   		 clear; cat_menu; return
- 	 fi
-
-	 # vypsání seznamu úkolů
-#	  for TASK_MEOW in $(cat $LIST_MIAW); do 
-	  local i=0
-	  local TASK_MEOW NAME STATUS
-	  for TASK_MEOW in "$@"; do
-	  	i=$((i+1)) 
-	        unset NAME STATUS	
-	 # přeskoč neexistující nebo prázdné řádky
-# 	 	 [[ -f "$TASK_MEOW" ]] || continue
-		source "$TASK_MEOW" 2>/dev/null || continue
-
-	# defaultní hodnota pro proměnnou STATUS (v configu jednotlivých tasků)
- 		 : "${STATUS:=N}"
-
- 		 if [[ "${STATUS^^}" == "N" ]]; then
-   	 # nedokončené úkoly: tyrkysově
-   			 printf "${TEAL2}" "$NAME" "${BB}"
-		 else
-   	 # dokončené úkoly: fialově + kočička
-   			 printf "${PURP2}" "≽^•⩊•^≼" "$NAME" "${BB}"
- 		 fi
- 	  done 
-	 read -r -p "Pokračuj stiskem Enter..." _
+	  fi
+	  
+	  echo
+	  echo
+	  echo "[DALŠÍ MOŽNOSTI]"
+	  echo "[1] Označit úkol jako přečtený"
+	  echo "[2] Založit nový task"
+	  echo "[3] Smazat úkol"
+	  echo "[4] Vrátit se na hlavní menu"
+	  echo
+	  read -r -p "KAM DÁL? [1-4]: " CESTAZLISTU
+          echo
+          case $CESTAZLISTU in
+		  1) clear ; cat_ate_it ;;
+		  2) clear ; atarashii_neko_task ;;
+		  3) clear ; buried_in_sand ;;
+		  4) clear ; cat_menu
+	  esac
          clear
-         cat_menu
  }
 
 
 
 ### OZNAČIT ÚKOL JAKO SPLNĚNÝ ###
 
-#         cat_ate_it() {
+         cat_ate_it() {
+	i=1
+	CAT_SOUBOR=()
+	for LIST_TASKU in "$PELECH"/*.conf; do
+   		[ -e "$LIST_TASKU" ] || break
+   		name=$(grep -m1 '^NAME=' "$LIST_TASKU"   | sed -E 's/^NAME="?([^"]*)"?/\1/')
+   		status=$(grep -m1 '^STATUS=' "$LIST_TASKU" | sed -E 's/^STATUS="?([^"]*)"?/\1/')
+   		: "${name:=<bez NAME>}"
+   		: "${status:=N}"
+   		[[ "${status^^}" == "Y" ]] && mark='[X]' || mark='[ ]'
+   		printf "%d) %s %s\n" "$i" "$mark" "$name"
+   		CAT_SOUBOR[$i]="$LIST_TASKU"
+   		((i++))
+	done
 
+	if [ ${#CAT_SOUBOR[@]} -eq 0 ]; then
+        	echo "Nemáš zadané žádné úkoly."
+       		read -r -p "Pokračuj stiskem Enter..." _
+       		clear
+       		cat_menu
+       		return
+   	fi
 
-#	 cat_tasks
-#}
+	read -r -p "Zadej číslo úkolu, který chceš označit jako splněný: " PREPSAT_CAT
+	CAT_TARGET="${CAT_SOUBOR[$PREPSAT_CAT]}"
+   	if [ -n "$PREPSAT_CAT" ]; then
+        # přepiše STATUS na Y
+       		sed -i 's/^STATUS=.*/STATUS="Y"/' "$CAT_TARGET"
+       		echo "Úkol označen jako splněný!"
+   	 else
+         echo "Neplatná volba."
+    fi
+
+	 cat_menu
+}
 
 
 
@@ -111,7 +140,7 @@
 	 while :; do
 	 read -r -p "Zadejte systémový název:" SYSCAT < /dev/tty
 	 SYSCAT="${SYSCAT//[!a-z0-9._-]/_}"
-	 	if [[ ! "$SYSCAT" =~ ^[a-z0-9._-]+$ ]]; then
+	 	if [[ -z "$SYSCAT" || ! "$SYSCAT" =~ ^[a-z0-9._-]+$ ]]; then 
     	 		echo "Neplatný název. Povolené znaky: a-z 0-9 . _ -"
     			continue
 	 	fi
@@ -137,20 +166,20 @@
 	 read -r -p "Zadejte název úkolu s diakritikou: " CATNAME < /dev/tty
 	# escapování / zbavení se speciálních znaků
 	 CATNAME_E=${CATNAME//\\/\\\\}
-	 CATNAME_E=${CATNAME_E//\"/\\\"}
-	 CATNAME_E=${CATNAME_E//\$/\\$}
+	 CATNAME_ESC=${CATNAME_ESC//\"/\\\"}
+	 CATNAME_ESC=${CATNAME_ESC//\$/\\$}
 	# založí soubor s vyplněným názvem a přidá hodnotu pro status úkolu + zahlásí error při chybě vytváření úkolu
-	 {
+       	{
   	 printf 'NAME="%s"\n' "$CATNAME_E"
  	 printf 'STATUS=N\n'
-	 } > "$CATNIP" || { echo "Zápis selhal: $CATNIP"; return 1; }
+	 } > "$CATNIP" || { echo "Zápis selhal: $CATNIP"; read -r -p "Enter..." _; clear; cat_tasks; return 1; }
 
 	# echo o zakončení vytváření nového úkolu
-	 echo "Úkol založený: $CATNAME_E"
+	 echo "Úkol založený: $CATNAME"
 	 read -r -p "Pokračuj stiskem Enter..." _
 	 clear
 	# posunutí zpět na list tasků
-	 cat_tasks 
+	 cat_menu 
 }
 
 
@@ -158,9 +187,66 @@
 
 ### SMAZAT ÚKOL ###
 
-#         buried_in_sand() {
+   	 buried_in_sand() {
+    	 echo "Který úkol chceš smazat?"
+    	 i=1
+    	 CAT_SOUBOR=()
+    	 NAMES=()
 
-#} 
+   	 for LIST_TASKU in "$PELECH"/*.conf; do
+    		[ -e "$LIST_TASKU" ] || break
+    		 name=$(grep -m1 '^NAME=' "$LIST_TASKU"   | sed -E 's/^NAME="?([^"]*)"?/\1/')
+       		 status=$(grep -m1 '^STATUS=' "$LIST_TASKU" | sed -E 's/^STATUS="?([^"]*)"?/\1/')
+       		 : "${name:=<bez NAME>}"
+       		 : "${status:=N}"
+       		 [[ "${status^^}" == "Y" ]] && mark='[X]' || mark='[ ]'
+       		 printf "%d) %s %s\n" "$i" "$mark" "$name"
+       		 CAT_SOUBOR[$i]="$LIST_TASKU"
+       		 NAMES[$i]="$name"
+       		 ((i++))
+   	 done
+
+   	 if [ ${#CAT_SOUBOR[@]} -eq 0 ]; then
+       		 echo "Nemáš zadané žádné úkoly."
+       		 read -r -p "Pokračuj stiskem Enter..." _
+       		 clear
+       		 cat_tasks
+       		 return
+   	 fi
+
+   	 echo
+   	 read -r -p "Zadej číslo úkolu ke smazání: " CAT_SMAZAT
+   	 if [[ ! "$CAT_SMAZAT" =~ ^[0-9]+$ ]] || [ -z "${CAT_SOUBOR[$CAT_SMAZAT]}" ]; then
+       		 echo "Neplatná volba."
+       		 read -r -p "Pokračuj stiskem Enter..." _
+       		 clear
+       		 cat_tasks
+       		 return
+    	 fi
+
+   	 RED_DOT="${CAT_SOUBOR[$CAT_SMAZAT]}"
+   	 FLUFFY="${NAMES[$CAT_SMAZAT]}"
+
+	# validace, jestli opravdu mažeme task (y/N - velké písmeno značí defaultní volbu pro případ, že to proenterujete) 
+	 read -r -p "Opravdu smazat „$FLUFFY“? [y/N]: " ans
+   	 if [[ ! "$ans" =~ ^([Yy]|[Aa])$ ]]; then
+        	 echo "Zrušeno."
+        	 read -r -p "Pokračuj stiskem Enter..." _
+        	 clear
+        	 cat_menu
+        	 return
+   	 fi
+
+	 if rm -- "$RED_DOT"; then
+         echo "Úkol smazán: $FLUFFY"
+         else
+         echo "Chyba: úkol se nepodařilo smazat."
+         fi
+
+         read -r -p "Pokračuj stiskem Enter..." _
+         clear
+         cat_menu
+} 
 
 
 
@@ -217,9 +303,8 @@
 
 # animace čičiny
 	bigus_catus_animatus
-	sleep 2
 	echo "############################## TADÁÁÁÁÁÁÁÁÁ! ################################"
-	sleep 2 
+	sleep 0.3 
 
 # smyčka z menu k taskům a zpět
 
